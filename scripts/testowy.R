@@ -1,6 +1,8 @@
 library(rvest)
 library(tidyverse)
 
+####PLAYER STATS
+
 url1 <- "https://lol.fandom.com/wiki/2022_Season_World_Championship/Main_Event/Player_Statistics"
 page_sg <- read_html(url1)
 
@@ -42,3 +44,25 @@ names(player_with_champs)[1] <- "Player"
 Team <- c(rep("100 Thieves", times = 5), rep("Cloud9", times = 5), rep("CTBC Flying Oyster", times = 6), rep("DRX", times = 6), rep("DWG KIA", times = 5), rep("EDward Gaming", times = 5), rep("Evil Geniuses.NA", times = 5), rep("Fnatic", times = 5), rep("G2 Esports", times = 5), rep("GAM Esports", times = 5), rep("Gen.G", times = 5), rep("JD Gaming", times = 5), rep("Rogue", times = 5), rep("Royal Never Give Up", times = 5), rep("T1", times = 5), rep("Top Esports", times = 5))
 
 player_with_champs <- cbind(Team, player_with_champs)
+
+
+####CHAMPION STATS
+url2 <- "https://lol.fandom.com/wiki/2022_Season_World_Championship/Main_Event/Champion_Statistics"
+page_cs <- read_html(url2)
+
+get_tables <- html_table(page_cs)
+
+champ_stats <- get_tables[[5]]
+champ_stats <- champ_stats[-c(1:3),-c(23:29)]
+
+names(champ_stats) <- champ_stats[1,]
+champ_stats <- champ_stats[-1,]
+
+champ_stats[champ_stats == "-"] <- NA
+
+nowe_nazwy <- c("Champion_name", "Pick_ban_n", "Pick_ban_perc", "Banned", "Games_played", "By_n_players", "Win", "Lose", "Win_rate_perc", "Kills", "Deaths", "Assists", "KDA_ratio", "Creep_score", "Creep_score_min", "Gold_k", "Gold_min", "Damage_k", "Damage_min", "Kill_part_perc", "Kill_share_perc", "Gold_share_perc")
+
+names(champ_stats) <- nowe_nazwy
+
+champ_stats[,2:22] <- champ_stats[,2:22] %>%
+  mutate(across(.fns = ~ parse_number(.x)))
