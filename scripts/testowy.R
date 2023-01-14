@@ -1,5 +1,9 @@
 library(rvest)
 library(tidyverse)
+library(ggimage)
+library(lubridate)
+library(ggpattern)
+library(gt)
 
 ####PLAYER STATS
 
@@ -66,3 +70,86 @@ names(champ_stats) <- nowe_nazwy
 
 champ_stats[,2:22] <- champ_stats[,2:22] %>%
   mutate(across(.fns = ~ parse_number(.x)))
+
+
+
+#Wektor dużych img bohaterów
+load_img_path <- c(paste0(getwd(),"/img/loading/Aatrox_0.jpg"), paste0(getwd(),"/img/loading/Yuumi_0.jpg"),  paste0(getwd(),"/img/loading/Sejuani_0.jpg"), paste0(getwd(),"/img/loading/Caitlyn_0.jpg"), paste0(getwd(),"/img/loading/Azir_0.jpg"), paste0(getwd(),"/img/loading/Sylas_0.jpg"), paste0(getwd(),"/img/loading/Graves_0.jpg"), paste0(getwd(),"/img/loading/Maokai_0.jpg"), paste0(getwd(),"/img/loading/Lucian_0.jpg"), paste0(getwd(),"/img/loading/Viego_0.jpg"), paste0(getwd(),"/img/loading/Akali_0.jpg"))
+
+load_img_path <- c(load_img_path, rep(NA, times = 83))
+
+champ_stats <- cbind(load_img_path, champ_stats)
+
+bg_img_path <- paste0(getwd(),"/img/loading/bg_img.jpg")
+
+
+plot_champ_stat1 <- champ_stats %>%
+  slice_max(Pick_ban_n, n = 5) %>%
+  arrange(-Pick_ban_n) %>%
+  ggplot(aes(x = reorder(Champion_name, -Pick_ban_n), 
+             y = Pick_ban_n,
+             image = load_img_path)) +
+  geom_bar_pattern(stat = "identity",
+                   alpha = 0.7,
+                   width = 0.6,
+                   pattern = 'image',
+                   pattern_type = 'expand',
+                   pattern_filename = load_img_path[1:5]) +
+  geom_text(aes(y = Pick_ban_n, label = Pick_ban_n, size = 10 ,vjust = 1.5), color = "white", fontface = "bold") +
+  theme(axis.text.x = element_text(vjust = 8, color = "white", face = "bold", size = 14),
+        axis.text.y = element_blank(),
+        axis.title = element_blank(),
+        axis.ticks = element_blank(),
+        axis.line = element_blank(),
+        panel.grid = element_blank(),
+        plot.background = element_blank(),
+        legend.position = "none",
+        plot.margin = unit(c(0,0,0,0), "cm")
+  )
+
+
+ggbackground(gg = plot_champ_stat1, background = bg_img_path)
+
+
+#Pobieranie miniatur bohaterów
+url4 <- "https://gol.gg/_img/champions_icon/"
+
+#Popularność League of Legends
+url5 <- "https://activeplayer.io/league-of-legends/"
+
+page_activeplayer <- read_html(url5)
+
+ap_tables <- html_table(page_activeplayer)
+
+lol_popularity <- ap_tables[[2]]
+
+lol_popularity <- lol_popularity[-1,]
+
+miesiące <- month(parse_date_time(lol_popularity$Month, "BdY"))
+lata <- year(parse_date_time(lol_popularity$Month, "BdY"))
+
+lol_popularity <- lol_popularity[,-c(1,3,4)]
+
+lol_popularity <- cbind(Year = lata, Month = miesiące, lol_popularity)
+
+lol_popularity[,c(3,4)] <- lol_popularity[,c(3,4)] %>%
+  mutate(across(.fns = ~ parse_number(.x)))
+
+plot_pop <- lol_popularity %>%
+  group_by(Year) %>%
+  summarize(Avg = mean(`Average Monthly Players`)) %>%
+  as_tibble() %>%
+  ggplot(aes(x = Year, y = Avg)) +
+  geom_bar(stat = "identity", alpha = 0.9, fill = '#C89B3C', width = 0.6) +
+  geom_text(aes(y = Avg, label = paste0(round(Avg/1000000, digits = 1), " mln"), vjust = 1.5), color = "white", fontface = "bold") +
+  theme(axis.text.x = element_text(vjust = 8, color = "white", face = "bold", size = 14),
+        axis.text.y = element_blank(),
+        axis.title = element_blank(),
+        axis.ticks = element_blank(),
+        axis.line = element_blank(),
+        panel.grid = element_blank(),
+        plot.background = element_blank(),
+        plot.margin = unit(c(0,0,0,0), "cm")
+        )
+
+ggbackground(gg = plot_pop, background = bg_img_path)

@@ -1,0 +1,140 @@
+---
+title: "Mistrzostwa Świata League of Legends 2022"
+author: "Szymon Olędzki"
+lang: pl
+format: 
+  html:
+    warning: false
+    message: false
+    echo: false
+    self-contained: true
+editor: visual
+editor_options: 
+  chunk_output_type: console
+---
+
+## Czym jest League of Legends?
+
+[League of Legends](https://www.leagueoflegends.com/pl-pl/ "Odnośnik do oficjalnej strony League of Legends"){#lol_website} jest grą komputerową z gatunku [MOBA](https://pl.wikipedia.org/wiki/Multiplayer_online_battle_arena "Wikipedia - MOBA"){#wiki_moba}, czyli multiplayer online battle arena. Gra została wydana 27 października 2009 roku, jej producentem i wydawcą jest Riot Games. Na przestrzeni lat League of Legends zyskiwało na popularności i stało się marką rozpoznawalną przez graczy na całym świecie. Od początku istnienia wydawana jest w modelu płatności [Free-to-play](https://pl.wikipedia.org/wiki/Free-to-play "Wikipedia - Free-to-play") i dostępna za darmo dla graczy na całym świecie.
+
+```{r}
+#ładowanie potrzebnych paczek
+library(rvest)
+library(tidyverse)
+library(ggimage)
+library(lubridate)
+library(ggpattern)
+library(gt)
+
+#oraz plików
+bg_img_path <- paste0(getwd(),"/img/loading/bg_img.jpg")
+load_img_path <- c(paste0(getwd(),"/img/loading/Aatrox_0.jpg"), paste0(getwd(),"/img/loading/Yuumi_0.jpg"),  paste0(getwd(),"/img/loading/Sejuani_0.jpg"), paste0(getwd(),"/img/loading/Caitlyn_0.jpg"), paste0(getwd(),"/img/loading/Azir_0.jpg"), paste0(getwd(),"/img/loading/Sylas_0.jpg"), paste0(getwd(),"/img/loading/Graves_0.jpg"), paste0(getwd(),"/img/loading/Maokai_0.jpg"), paste0(getwd(),"/img/loading/Lucian_0.jpg"), paste0(getwd(),"/img/loading/Viego_0.jpg"), paste0(getwd(),"/img/loading/Akali_0.jpg"))
+
+load_img_path <- c(load_img_path, rep(NA, times = 83))
+```
+
+```{r}
+####GAME POPULARITY STATS
+url5 <- "https://activeplayer.io/league-of-legends/"
+
+page_activeplayer <- read_html(url5)
+
+ap_tables <- html_table(page_activeplayer)
+
+lol_popularity <- ap_tables[[2]]
+
+lol_popularity <- lol_popularity[-1,]
+
+miesiące <- month(parse_date_time(lol_popularity$Month, "BdY"))
+lata <- year(parse_date_time(lol_popularity$Month, "BdY"))
+
+lol_popularity <- lol_popularity[,-c(1,3,4)]
+
+lol_popularity <- cbind(Year = lata, Month = miesiące, lol_popularity)
+
+lol_popularity[,c(3,4)] <- lol_popularity[,c(3,4)] %>%
+  mutate(across(.fns = ~ parse_number(.x)))
+
+
+
+####CHAMPION STATS
+url2 <- "https://lol.fandom.com/wiki/2022_Season_World_Championship/Main_Event/Champion_Statistics"
+page_cs <- read_html(url2)
+
+get_tables <- html_table(page_cs)
+
+champ_stats <- get_tables[[5]]
+champ_stats <- champ_stats[-c(1:3),-c(23:29)]
+
+names(champ_stats) <- champ_stats[1,]
+champ_stats <- champ_stats[-1,]
+
+champ_stats[champ_stats == "-"] <- NA
+
+nowe_nazwy <- c("Champion_name", "Pick_ban_n", "Pick_ban_perc", "Banned", "Games_played", "By_n_players", "Win", "Lose", "Win_rate_perc", "Kills", "Deaths", "Assists", "KDA_ratio", "Creep_score", "Creep_score_min", "Gold_k", "Gold_min", "Damage_k", "Damage_min", "Kill_part_perc", "Kill_share_perc", "Gold_share_perc")
+
+names(champ_stats) <- nowe_nazwy
+
+champ_stats[,2:22] <- champ_stats[,2:22] %>%
+  mutate(across(.fns = ~ parse_number(.x)))
+
+champ_stats <- cbind(load_img_path, champ_stats)
+```
+
+```{r}
+#| label: fig-lolpop
+#| fig-cap: Wykres popularności League of Legends na przestrzeni lat
+
+plot_pop <- lol_popularity %>%
+  group_by(Year) %>%
+  summarize(Avg = mean(`Average Monthly Players`)) %>%
+  as_tibble() %>%
+  ggplot(aes(x = Year, y = Avg)) +
+  geom_bar(stat = "identity", alpha = 0.9, fill = '#C89B3C', width = 0.6) +
+  geom_text(aes(y = Avg, label = paste0(round(Avg/1000000, digits = 1), " mln"), vjust = 1.5), color = "white", fontface = "bold") +
+  theme(axis.text.x = element_text(vjust = 8, color = "white", face = "bold", size = 14),
+        axis.text.y = element_blank(),
+        axis.title = element_blank(),
+        axis.ticks = element_blank(),
+        axis.line = element_blank(),
+        panel.grid = element_blank(),
+        plot.background = element_blank(),
+        plot.margin = unit(c(0,0,0,0), "cm")
+        )
+
+ggbackground(gg = plot_pop, background = bg_img_path)
+
+```
+
+Podczas gry naprzeciw siebie stają dwie drużyny, każda złożona z 5 graczy. Rozgrywka odbywa się na tzw. **Polach Sprawiedliwości** (*ang.* Fields of Justice), w najbardziej popularnej odmianie gracze walczą na arenie zwanej **Rozpadliną Przywoływaczy** (*ang.* Summoner's Rift), która podzielona jest na 3 aleje i obszary między nimi.
+
+```{r}
+#| label: fig-lolcontested
+#| fig-cap: Wykres pięciu najczęściej pojawiających się w fazie draftu bohaterów
+
+plot_champ_stat1 <- champ_stats %>%
+  slice_max(Pick_ban_n, n = 5) %>%
+  arrange(-Pick_ban_n) %>%
+  ggplot(aes(x = reorder(Champion_name, -Pick_ban_n), 
+             y = Pick_ban_n,
+             image = load_img_path)) +
+  geom_bar_pattern(stat = "identity",
+                   alpha = 0.7,
+                   width = 0.6,
+                   pattern = 'image',
+                   pattern_type = 'expand',
+                   pattern_filename = load_img_path[1:5]) +
+  geom_text(aes(y = Pick_ban_n, label = Pick_ban_n, size = 10 ,vjust = 1.5), color = "white", fontface = "bold") +
+  theme(axis.text.x = element_text(vjust = 8, color = "white", face = "bold", size = 14),
+        axis.text.y = element_blank(),
+        axis.title = element_blank(),
+        axis.ticks = element_blank(),
+        axis.line = element_blank(),
+        panel.grid = element_blank(),
+        plot.background = element_blank(),
+        legend.position = "none",
+        plot.margin = unit(c(0,0,0,0), "cm")
+  )
+
+ggbackground(gg = plot_champ_stat1, background = bg_img_path)
+```
