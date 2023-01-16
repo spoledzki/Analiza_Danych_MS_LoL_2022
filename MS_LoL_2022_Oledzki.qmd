@@ -15,7 +15,17 @@ editor_options:
 
 ## Czym jest League of Legends?
 
-[League of Legends](https://www.leagueoflegends.com/pl-pl/ "Odnośnik do oficjalnej strony League of Legends"){#lol_website} jest grą komputerową z gatunku [MOBA](https://pl.wikipedia.org/wiki/Multiplayer_online_battle_arena "Wikipedia - MOBA"){#wiki_moba}, czyli multiplayer online battle arena. Gra została wydana 27 października 2009 roku, jej producentem i wydawcą jest Riot Games. Na przestrzeni lat League of Legends zyskiwało na popularności i stało się marką rozpoznawalną przez graczy na całym świecie. Od początku istnienia wydawana jest w modelu płatności [Free-to-play](https://pl.wikipedia.org/wiki/Free-to-play "Wikipedia - Free-to-play") i dostępna za darmo dla graczy na całym świecie.
+[League of Legends](https://www.leagueoflegends.com/pl-pl/ "Odnośnik do oficjalnej strony League of Legends"){#lol_website} jest grą komputerową z gatunku [MOBA](https://pl.wikipedia.org/wiki/Multiplayer_online_battle_arena "Wikipedia - MOBA"){#wiki_moba}, czyli multiplayer online battle arena. Gra została wydana 27 października 2009 roku, jej producentem i wydawcą jest Riot Games.
+
+::: {#fig-riot_lol layout-ncol="2"}
+![Logo firmy Riot Games](img/riot_logo.png){#fig-riot width="320"}
+
+![Logo gry League of Legands](img/lol-logo-rendered-hi-res.png){#fig-lol width="300"}
+
+Logo firmy Riot Games oraz gry League of Legends
+:::
+
+Na przestrzeni lat *League of Legends* zyskiwało na popularności i stało się marką rozpoznawalną przez graczy na całym świecie. Od początku istnienia wydawana jest w modelu płatności [Free-to-play](https://pl.wikipedia.org/wiki/Free-to-play "Wikipedia - Free-to-play") i dostępna za darmo dla graczy na całym świecie.
 
 ```{r}
 #ładowanie potrzebnych paczek
@@ -24,7 +34,7 @@ library(tidyverse)
 library(ggimage)
 library(lubridate)
 library(ggpattern)
-library(gt)
+library(countrycode)
 
 #oraz plików
 bg_img_path <- paste0(getwd(),"/img/loading/bg_img.jpg")
@@ -34,7 +44,9 @@ load_img_path <- c(load_img_path, rep(NA, times = 83))
 ```
 
 ```{r}
-####GAME POPULARITY STATS
+#CHUNK NA DANE DO WYKRESÓW
+
+#GAME POPULARITY STATS
 url5 <- "https://activeplayer.io/league-of-legends/"
 
 page_activeplayer <- read_html(url5)
@@ -57,7 +69,7 @@ lol_popularity[,c(3,4)] <- lol_popularity[,c(3,4)] %>%
 
 
 
-####CHAMPION STATS
+#CHAMPION STATS
 url2 <- "https://lol.fandom.com/wiki/2022_Season_World_Championship/Main_Event/Champion_Statistics"
 page_cs <- read_html(url2)
 
@@ -83,30 +95,75 @@ champ_stats <- cbind(load_img_path, champ_stats)
 
 ```{r}
 #| label: fig-lolpop
-#| fig-cap: Wykres popularności League of Legends na przestrzeni lat
+#| fig-cap: Wykres popularności League of Legends w latach 2019-2022 (średnia graczy w ciągu danego roku podana w milionach)
 
 plot_pop <- lol_popularity %>%
   group_by(Year) %>%
   summarize(Avg = mean(`Average Monthly Players`)) %>%
+  mutate(Avg = round(Avg/1000000, digits = 1)) %>%
   as_tibble() %>%
-  ggplot(aes(x = Year, y = Avg)) +
-  geom_bar(stat = "identity", alpha = 0.9, fill = '#C89B3C', width = 0.6) +
-  geom_text(aes(y = Avg, label = paste0(round(Avg/1000000, digits = 1), " mln"), vjust = 1.5), color = "white", fontface = "bold") +
-  theme(axis.text.x = element_text(vjust = 8, color = "white", face = "bold", size = 14),
-        axis.text.y = element_blank(),
+  ggplot(aes(x = Year, 
+             y = Avg)) +
+  geom_hline(yintercept = c(50, 100, 150), color = "white", alpha = 0.5) +
+  geom_bar(stat = "identity", 
+           alpha = 0.99, 
+           fill = '#C89B3C', 
+           width = 0.6) +
+  geom_text(aes(y = Avg, 
+                label = paste0(Avg, " mln"), 
+                vjust = 1.5), 
+            color = "white", 
+            fontface = "bold") +
+  labs(caption = "Źródło: https://activeplayer.io\nOpracowanie własne, Szymon Olędzki", color = "white") +
+  ylim(0,155) +
+  geom_hline(yintercept = c(0), color = "white", alpha = 0.5) +
+  theme(axis.text.x = element_text(vjust = 7, color = "white", face = "bold", size = 14),
+        axis.text.y = element_text(hjust = 1, color = "white", face = "bold", size = 11),
         axis.title = element_blank(),
-        axis.ticks = element_blank(),
-        axis.line = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.line.y = element_blank(),
         panel.grid = element_blank(),
         plot.background = element_blank(),
-        plot.margin = unit(c(0,0,0,0), "cm")
+        plot.caption = element_text(color = "white", face = "italic", size = 9)
         )
 
 ggbackground(gg = plot_pop, background = bg_img_path)
 
 ```
 
-Podczas gry naprzeciw siebie stają dwie drużyny, każda złożona z 5 graczy. Rozgrywka odbywa się na tzw. **Polach Sprawiedliwości** (*ang.* Fields of Justice), w najbardziej popularnej odmianie gracze walczą na arenie zwanej **Rozpadliną Przywoływaczy** (*ang.* Summoner's Rift), która podzielona jest na 3 aleje i obszary między nimi.
+## Jak wygląda rozgrywka w League of Legends?
+
+Podczas gry naprzeciw siebie stają dwie drużyny, każda złożona z 5 graczy. Rozgrywka odbywa się na tzw. **Polach Sprawiedliwości** (*ang.* Fields of Justice), w najbardziej popularnej odmianie gracze walczą na arenie zwanej **Rozpadliną Przywoływaczy** (*ang.* Summoner's Rift), która podzielona jest na 3 aleje i obszary między nimi, zwane "dżunglą". Każdy z 5 graczy w danej drużynie pełni inną rolę, związaną zarówno z pełnionymi zadaniami jak i pozycją zajmowaną na mapie w początkowym etapie gry.
+
+::: {#fig-srift}
+![](img/summoners_rift.jpg)
+
+Widok z lotu ptaka na mapę Summoner's Rift
+:::
+
+Celem gry jest zdobycie bazy przeciwnika oraz zniszczenie tzw. **Nexusa**, który znajduje się w jej centrum. Oprócz bohaterów, którymi kierują gracze, bazy bronią również przyjazne (a w przypadku bazy przeciwnika wrogie) **Stwory** (*ang.* Minion, Creep), które automatycznie pojawiają się na mapie co 30 sekund i poruszają się wzdłuż trzech alei. Obiektami stałymi, aczkolwiek podatnymi na zniszczenie są **wieże** (*ang.* Turret, Tower) oraz **inhibitory**, które są jedynymi odradzającymi się "budynkami". Aby zaatakować wrogi Nexus należy:
+
+1.  Zniszczyć przynajmniej 3 wrogie wieże na jednej z alei.
+
+2.  Zniszczyć inhibitor położony przy tej samej alei.
+
+3.  Zniszczyć obie wieże Nexusa.
+
+Zniszczenie wrogiego inhibitora pozwala na pojawianie się znacznie potężniejszych przyjaznych Stworów, jednak tylko do czasu odrodzenia się inhibitora przy danej alei. Zniszczenie Nexusa przeciwnika oznacza natychmiastowy koniec rozgrywki oraz zwycięstwo drużyny go niszczącej.
+
+## Profesjonalne rozgrywki League of Legends
+
+Profesjonalna scena *League of Legends* ma swoje korzenie w zawartym w grze systemie rankingowym. W zależności od wybranego trybu gracze mogą zmierzyć się również w grach, które wpływają na ich ranking. Pierwotny system rankingowy został zaprojektowany dzięki inspiracji szachowym rankingiem Elo, który w zależności od różnych czynników, a ostatecznie od rezultatu gry, przypisuje graczom za dany mecz dodatnie lub ujemne punkty.
+
+Ranking w obecnej postaci oparty jest na systemie **Kręgów** (*ang*. Tier) zaprezentowanych na poniższej ilustracji oraz dywizji w każdym z nich.
+
+::: {#fig-ranked}
+![](img/lol_ranks.jpeg)
+
+Kręgi systemu rankingowego League of Legends (od lewej: żelazo, brąz, srebro, złoto, platyna, diament, mistrz, arcymistrz, pretendent)
+:::
+
+Dzięki zwycięstwom w grach rankingowych gracze mogą awansować do kolejnych dywizji, a następnie do wyższych kręgów. Gracze z najwyższych kręgów mogą zostać zrekrutowani przez organizacje e-sportowe, które dostrzegą ich potencjał lub sami mogą zgłosić się gdy jakiś zespół ogłosi nabór do drużyny. Najlepsze zespoły biorą udział w rozgrywkach na poziomie regionalnym organizowanych przez *Riot Games*, w których walczą o tytuł mistrza w danym regionie i o udział w corocznych mistrzostwach świata.
 
 ```{r}
 #| label: fig-lolcontested
@@ -118,23 +175,33 @@ plot_champ_stat1 <- champ_stats %>%
   ggplot(aes(x = reorder(Champion_name, -Pick_ban_n), 
              y = Pick_ban_n,
              image = load_img_path)) +
+  ylim(0,80) +
+  geom_hline(yintercept = c(20,40,60,80), color = "white", alpha = 0.5) +
   geom_bar_pattern(stat = "identity",
                    alpha = 0.7,
                    width = 0.6,
                    pattern = 'image',
                    pattern_type = 'expand',
                    pattern_filename = load_img_path[1:5]) +
-  geom_text(aes(y = Pick_ban_n, label = Pick_ban_n, size = 10 ,vjust = 1.5), color = "white", fontface = "bold") +
-  theme(axis.text.x = element_text(vjust = 8, color = "white", face = "bold", size = 14),
-        axis.text.y = element_blank(),
+  geom_hline(yintercept = c(0), 
+             color = "white", 
+             alpha = 0.5) +
+  geom_text(aes(y = Pick_ban_n, 
+                label = Pick_ban_n, 
+                size = 10 ,vjust = 1.5), 
+            color = "white", 
+            fontface = "bold") +
+  labs(caption = "Źródło: https://lol.fandom.com\nOpracowanie własne, Szymon Olędzki", color = "white") +
+  theme(axis.text.x = element_text(vjust = 7, color = "white", face = "bold", size = 14),
+        axis.text.y = element_text(hjust = 1.5, color = "white", face = "bold", size = 11),
         axis.title = element_blank(),
         axis.ticks = element_blank(),
         axis.line = element_blank(),
         panel.grid = element_blank(),
-        plot.background = element_blank(),
-        legend.position = "none",
-        plot.margin = unit(c(0,0,0,0), "cm")
+        plot.caption = element_text(color = "white", face = "italic", size = 9),
+        legend.position = "none"
   )
+
 
 ggbackground(gg = plot_champ_stat1, background = bg_img_path)
 ```

@@ -3,7 +3,7 @@ library(tidyverse)
 library(ggimage)
 library(lubridate)
 library(ggpattern)
-library(gt)
+library(countrycode)
 
 ####PLAYER STATS
 
@@ -89,22 +89,31 @@ plot_champ_stat1 <- champ_stats %>%
   ggplot(aes(x = reorder(Champion_name, -Pick_ban_n), 
              y = Pick_ban_n,
              image = load_img_path)) +
+  ylim(0,80) +
+  geom_hline(yintercept = c(20,40,60,80), color = "white", alpha = 0.5) +
   geom_bar_pattern(stat = "identity",
                    alpha = 0.7,
                    width = 0.6,
                    pattern = 'image',
                    pattern_type = 'expand',
                    pattern_filename = load_img_path[1:5]) +
-  geom_text(aes(y = Pick_ban_n, label = Pick_ban_n, size = 10 ,vjust = 1.5), color = "white", fontface = "bold") +
+  geom_hline(yintercept = c(0), 
+             color = "white", 
+             alpha = 0.5) +
+  geom_text(aes(y = Pick_ban_n, 
+                label = Pick_ban_n, 
+                size = 10 ,vjust = 1.5), 
+            color = "white", 
+            fontface = "bold") +
+  labs(caption = "Źródło: https://lol.fandom.com\nOpracowanie własne, Szymon Olędzki", color = "white") +
   theme(axis.text.x = element_text(vjust = 8, color = "white", face = "bold", size = 14),
-        axis.text.y = element_blank(),
+        axis.text.y = element_text(hjust = 1.5, color = "white", face = "bold", size = 11),
         axis.title = element_blank(),
         axis.ticks = element_blank(),
         axis.line = element_blank(),
         panel.grid = element_blank(),
-        plot.background = element_blank(),
-        legend.position = "none",
-        plot.margin = unit(c(0,0,0,0), "cm")
+        plot.caption = element_text(color = "white", face = "italic", size = 9),
+        legend.position = "none"
   )
 
 
@@ -112,7 +121,7 @@ ggbackground(gg = plot_champ_stat1, background = bg_img_path)
 
 
 #Pobieranie miniatur bohaterów
-url4 <- "https://gol.gg/_img/champions_icon/"
+#url4 <- "https://gol.gg/_img/champions_icon/"
 
 #Popularność League of Legends
 url5 <- "https://activeplayer.io/league-of-legends/"
@@ -138,18 +147,75 @@ lol_popularity[,c(3,4)] <- lol_popularity[,c(3,4)] %>%
 plot_pop <- lol_popularity %>%
   group_by(Year) %>%
   summarize(Avg = mean(`Average Monthly Players`)) %>%
+  mutate(Avg = round(Avg/1000000, digits = 1)) %>%
   as_tibble() %>%
-  ggplot(aes(x = Year, y = Avg)) +
-  geom_bar(stat = "identity", alpha = 0.9, fill = '#C89B3C', width = 0.6) +
-  geom_text(aes(y = Avg, label = paste0(round(Avg/1000000, digits = 1), " mln"), vjust = 1.5), color = "white", fontface = "bold") +
+  ggplot(aes(x = Year, 
+             y = Avg)) +
+  geom_hline(yintercept = c(50, 100, 150), color = "white", alpha = 0.5) +
+  geom_bar(stat = "identity", 
+           alpha = 0.99, 
+           fill = '#C89B3C', 
+           width = 0.6) +
+  geom_text(aes(y = Avg, 
+                label = paste0(Avg, " mln"), 
+                vjust = 1.5), 
+            color = "white", 
+            fontface = "bold") +
+  labs(caption = "Źródło: https://activeplayer.io\nOpracowanie własne, Szymon Olędzki", color = "white") +
+  ylim(0,155) +
+  geom_hline(yintercept = c(0), color = "white", alpha = 0.5) +
   theme(axis.text.x = element_text(vjust = 8, color = "white", face = "bold", size = 14),
-        axis.text.y = element_blank(),
+        axis.text.y = element_text(hjust = 1, color = "white", face = "bold", size = 11),
         axis.title = element_blank(),
-        axis.ticks = element_blank(),
-        axis.line = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.line.y = element_blank(),
         panel.grid = element_blank(),
         plot.background = element_blank(),
-        plot.margin = unit(c(0,0,0,0), "cm")
+        plot.caption = element_text(color = "white", face = "italic", size = 9)
         )
 
 ggbackground(gg = plot_pop, background = bg_img_path)
+
+#TEAM ROSTERS
+url6 <- "https://lol.fandom.com/wiki/2022_Season_World_Championship/Main_Event/Team_Rosters"
+
+page_tr <- read_html(url6)
+
+tr_ids <- page_tr %>% html_elements(".multirow-highlighter .extended-rosters-id") %>% html_text()
+tr_roles <- page_tr %>% html_elements("span.sprite.role-sprite") %>% html_attr("title")
+tr_country <- page_tr %>% html_elements("span.sprite.country-sprite") %>% html_attr("title")
+tr_residency <- page_tr %>% html_elements("div.region-icon") %>% html_text()
+tr_country_iso <- countrycode(tr_country, "country.name", "iso2c")
+
+roster_table <- tibble(id = tr_ids, role = tr_roles, country = tr_country, region = tr_residency, iso = tr_country_iso)
+
+plot_roster <- roster_table %>%
+  group_by(iso) %>%
+  summarize(Players_from_country = n()) %>%
+  slice_max(Players_from_country, n = 10) %>%
+  ggplot(aes(x = reorder(iso, Players_from_country),
+             y = Players_from_country)) +
+  geom_hline(yintercept = c(10, 20, 30, 40), color = "white") +
+  geom_bar(stat = "identity", fill = "#C89B3C") +
+  geom_text(aes(y = Players_from_country, 
+                label = Players_from_country, 
+                hjust = 1.5), 
+            color = "white", 
+            fontface = "bold") +
+  expand_limits(y = -1) +
+  geom_flag(y = -2, mapping = aes(image = iso)) +
+  labs(y = "Liczba zawodników") +
+  geom_hline(yintercept = c(0), color = "white") +
+  coord_flip() +
+  labs(caption = "Źródło: https://lol.fandom.com\nOpracowanie własne, Szymon Olędzki", color = "white") +
+  theme(axis.title.y = element_blank(),
+        axis.text.x = element_text(vjust = 1, color = "white", face = "bold", size = 14),
+        axis.text.y = element_text(hjust = 1, color = "white", face = "bold", size = 11),
+        axis.ticks.x = element_blank(),
+        axis.line = element_blank(),
+        panel.grid = element_blank(),
+        plot.caption = element_text(color = "white", face = "italic", size = 9)
+        )
+
+ggbackground(gg = plot_roster, background = bg_img_path)
+  
