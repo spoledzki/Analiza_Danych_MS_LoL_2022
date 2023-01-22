@@ -13,11 +13,13 @@ editor_options:
   chunk_output_type: console
 ---
 
-## Czym jest League of Legends?
+# Czym jest League of Legends?
+
+## Krótkie wprowadzenie i historia marki
 
 [League of Legends](https://www.leagueoflegends.com/pl-pl/ "Odnośnik do oficjalnej strony League of Legends"){#lol_website} jest grą komputerową z gatunku [MOBA](https://pl.wikipedia.org/wiki/Multiplayer_online_battle_arena "Wikipedia - MOBA"){#wiki_moba}, czyli multiplayer online battle arena. Gra została wydana 27 października 2009 roku, jej producentem i wydawcą jest Riot Games.
 
-::: {#fig-riot_lol layout-ncol="2"}
+::: {#fig-panel1 layout-ncol="2"}
 ![Logo firmy Riot Games](img/riot_logo.png){#fig-riot width="320"}
 
 ![Logo gry League of Legands](img/lol-logo-rendered-hi-res.png){#fig-lol width="300"}
@@ -35,18 +37,20 @@ library(ggimage)
 library(lubridate)
 library(ggpattern)
 library(countrycode)
-
+library(httr)
+library(knitr)
+library(kableExtra)
+library(scales)
+  
 #oraz plików
-bg_img_path <- paste0(getwd(),"/img/loading/bg_img.jpg")
-load_img_path <- c(paste0(getwd(),"/img/loading/Aatrox_0.jpg"), paste0(getwd(),"/img/loading/Yuumi_0.jpg"),  paste0(getwd(),"/img/loading/Sejuani_0.jpg"), paste0(getwd(),"/img/loading/Caitlyn_0.jpg"), paste0(getwd(),"/img/loading/Azir_0.jpg"), paste0(getwd(),"/img/loading/Sylas_0.jpg"), paste0(getwd(),"/img/loading/Graves_0.jpg"), paste0(getwd(),"/img/loading/Maokai_0.jpg"), paste0(getwd(),"/img/loading/Lucian_0.jpg"), paste0(getwd(),"/img/loading/Viego_0.jpg"), paste0(getwd(),"/img/loading/Akali_0.jpg"))
 
-load_img_path <- c(load_img_path, rep(NA, times = 83))
+bg_img_path <- paste0(getwd(),"/img/loading/bg_img.jpg")
 ```
 
 ```{r}
-#CHUNK NA DANE DO WYKRESÓW
+#CHUNK NA DANE DO WYKRESÓW I TABEL
 
-#GAME POPULARITY STATS
+#Popularność gry
 url5 <- "https://activeplayer.io/league-of-legends/"
 
 page_activeplayer <- read_html(url5)
@@ -67,9 +71,59 @@ lol_popularity <- cbind(Year = lata, Month = miesiące, lol_popularity)
 lol_popularity[,c(3,4)] <- lol_popularity[,c(3,4)] %>%
   mutate(across(.fns = ~ parse_number(.x)))
 
+#Statystyki zawodników
+url1 <- "https://lol.fandom.com/wiki/2022_Season_World_Championship/Main_Event/Player_Statistics"
+page_sg <- read_html(url1)
 
+statystyki_graczy <- html_table(page_sg)
 
-#CHAMPION STATS
+player_stats_tibble <- statystyki_graczy[[5]]
+
+clean_player_stats <- player_stats_tibble[-c(1:3),-c(1,21:27)]
+names(clean_player_stats) <- clean_player_stats[1,]
+
+clean_player_stats <- clean_player_stats[-1,]
+
+champs_all_page <- page_sg %>%
+  html_elements("span.sprite.champion-sprite") %>%
+  html_attr("title")
+
+champs_player_table <- champs_all_page[-c(1:10)]
+
+players1to15 <- champs_player_table[1:45]
+
+player16 <- champs_player_table[46]
+
+players17to21 <- champs_player_table[47:61]
+
+player22 <- champs_player_table[62]
+
+players23to82 <- champs_player_table[63:242]
+
+vec <- c(players1to15, player16, NA, NA, players17to21, player22, NA, NA, players23to82)
+
+champs_most_picked <- as_tibble(matrix(data = vec, ncol = 3, byrow = T), .name_repair = "unique")
+
+names(champs_most_picked) <- c("Most_picked1","Most_picked2","Most_picked3")
+
+player_with_champs <- cbind(clean_player_stats, champs_most_picked)
+
+names(player_with_champs)[1] <- "Player"
+
+Team <- c(rep("100 Thieves", times = 5), rep("Cloud9", times = 5), rep("CTBC Flying Oyster", times = 6), rep("DRX", times = 6), rep("DWG KIA", times = 5), rep("EDward Gaming", times = 5), rep("Evil Geniuses.NA", times = 5), rep("Fnatic", times = 5), rep("G2 Esports", times = 5), rep("GAM Esports", times = 5), rep("Gen.G", times = 5), rep("JD Gaming", times = 5), rep("Rogue", times = 5), rep("Royal Never Give Up", times = 5), rep("T1", times = 5), rep("Top Esports", times = 5))
+
+player_with_champs <- cbind(Team, player_with_champs)
+
+nowe_nazwy_player <- c("Team", "Player", "Games", "Win", "Lose", "Win_rate_perc", "Kills", "Deaths", "Assists", "KDA_ratio", "Creep_score", "Creep_score_min", "Gold_k", "Gold_min", "Damage_k", "Damage_min", "Kill_part_perc", "Kill_share_perc", "Gold_share_perc", "Champs_played", "Most_picked1","Most_picked2","Most_picked3")
+
+names(player_with_champs) <- nowe_nazwy_player
+
+player_with_champs[,3:20] <- player_with_champs[,3:20] %>%
+  mutate(across(.fns = ~ parse_number(.x)))
+
+cs300_img <- c(paste0(getwd(),'/img/team_logo/DRX.png'),paste0(getwd(),'/img/team_logo/DRX.png'),paste0(getwd(),'/img/team_logo/EDward_Gaming.png'),paste0(getwd(),"/img/team_logo/Royal_Never_Give_Up.png"),paste0(getwd(),"/img/team_logo/T1.png"),paste0(getwd(),'/img/team_logo/Gen.G.png'),paste0(getwd(),'/img/team_logo/Rogue_European_Team.png'),paste0(getwd(),"/img/team_logo/CTBC_Flying_Oyster.png"))
+
+#Statystyki bohaterów
 url2 <- "https://lol.fandom.com/wiki/2022_Season_World_Championship/Main_Event/Champion_Statistics"
 page_cs <- read_html(url2)
 
@@ -90,7 +144,165 @@ names(champ_stats) <- nowe_nazwy
 champ_stats[,2:22] <- champ_stats[,2:22] %>%
   mutate(across(.fns = ~ parse_number(.x)))
 
-champ_stats <- cbind(load_img_path, champ_stats)
+#Duże img bohaterów
+champ_img_url <- "http://ddragon.leagueoflegends.com/cdn/img/champion/loading/"
+
+nazwy_boh <- pull(champ_stats[,1])
+
+for (i in c(1:22, 24:length(nazwy_boh))) {
+  if (nazwy_boh[i] == "Renata Glasc") {
+    bohater <- "Renata"
+  }
+  else if (nazwy_boh[i] == "Wukong") {
+    bohater <- "MonkeyKing"
+  }
+  else if (nazwy_boh[i] %in% c("Kai'Sa", "Bel'Veth")) {
+    bohater <- nazwy_boh[i] %>% str_remove_all(pattern = "'") %>% str_to_title()
+  }
+  else {
+    bohater <- nazwy_boh[i]
+    bohater <- bohater %>% str_remove_all(pattern = "\\s") 
+  }
+  GET(paste0(champ_img_url, bohater, "_0.jpg"), write_disk(paste0(getwd(),"/img/load2/", bohater,".jpg"), overwrite = TRUE))
+}
+
+loading_img_path <- c()
+
+for (i in 1:length(nazwy_boh)) {
+  if (nazwy_boh[i] == "Renata Glasc") {
+    bohater <- "Renata"
+  }
+  else if (nazwy_boh[i] == "Wukong") {
+    bohater <- "MonkeyKing"
+  }
+  else if (nazwy_boh[i] %in% c("Kai'Sa", "Bel'Veth")) {
+    bohater <- nazwy_boh[i] %>% str_remove_all(pattern = "'") %>% str_to_title()
+  }
+  else {
+    bohater <- nazwy_boh[i]
+    bohater <- bohater %>% str_remove_all(pattern = "\\s") 
+  }
+  loading_img_path <- c(loading_img_path, paste0(getwd(), "/img/load2/", bohater, ".jpg"))
+}
+
+champ_stats <- cbind(loading_img_path, champ_stats)
+
+#Małe img bohaterów
+
+icons_url <- "https://gol.gg/tournament/tournament-picksandbans/World%20Championship%202022/"
+
+champ_icon_urls <- read_html(icons_url) %>% html_elements("img.champion_icon") %>% html_attr("src")
+
+champ_icon_urls <- unlist(str_sub_all(champ_icon_urls, start = 3))
+
+icon_names <- unlist(str_sub_all(champ_icon_urls, start = 22))
+
+for (i in 1:length(champ_icon_urls)) {
+  GET(paste0("gol.gg", champ_icon_urls[i]), write_disk(paste0(getwd(),"/img/mini/", icon_names[i]), overwrite = TRUE))
+}
+
+img_icon_path <- c()
+for (i in 1:length(icon_names)) {
+  img_icon_path <- c(img_icon_path, paste0(getwd(),"/img/mini/", icon_names[i]))
+}
+
+most_picked_ten <- c(paste0(getwd(),"/img/mini/Azir.png"),paste0(getwd(),"/img/mini/Sylas.png"),paste0(getwd(),"/img/mini/Aphelios.png"),paste0(getwd(),"/img/mini/Sejuani.png"),paste0(getwd(),"/img/mini/Viego.png"),paste0(getwd(),"/img/mini/Lucian.png"),paste0(getwd(),"/img/mini/Nami.png"),paste0(getwd(),"/img/mini/Graves.png"),paste0(getwd(),"/img/mini/Akali.png"),paste0(getwd(),"/img/mini/Aatrox.png"))
+
+most_banned_ten <- c(paste0(getwd(),"/img/mini/Yuumi.png"),paste0(getwd(),"/img/mini/Caitlyn.png"),paste0(getwd(),"/img/mini/Aatrox.png"),paste0(getwd(),"/img/mini/Sejuani.png"),paste0(getwd(),"/img/mini/Maokai.png"),paste0(getwd(),"/img/mini/Graves.png"),paste0(getwd(),"/img/mini/Azir.png"),paste0(getwd(),"/img/mini/Lucian.png"),paste0(getwd(),"/img/mini/Sylas.png"),paste0(getwd(),"/img/mini/Akali.png"))
+
+#Grupy w fazie play-in
+url3 <- "https://lol.fandom.com/wiki/2022_Season_World_Championship/Play-In"
+page_pi <- read_html(url3)
+
+pi_tables <- page_pi %>% html_table()
+
+pi_grupa_a <- pi_tables[20][[1]]
+pi_grupa_b <- pi_tables[23][[1]]
+
+pi_grupa_a <- pi_grupa_a[-c(1:7),-c(5:10)]
+names(pi_grupa_a) <- c("Miejsce", "Drużyna", "Zwycięstwa-Porażki", "Procent wygranych")
+pi_grupa_a[,2] <- c("Fnatic", "Evil Geniuses", "LOUD", "DetonatioN FocusMe", "Beyond Gaming", "Chiefs Esports Club")
+
+pi_a_popover <- c("Awans z pierwszego miejsca", "Awans po dogrywkach", "Przegrana w dogrywce", "Przegrana w dogrywce", "Eliminacja", "Eliminacja")
+
+pi_grupa_a <- cbind(pi_grupa_a, pop = pi_a_popover)
+
+
+pi_grupa_b <- pi_grupa_b[-c(1:7),-c(5:10)]
+names(pi_grupa_b) <- c("Miejsce", "Drużyna", "Zwycięstwa-Porażki", "Procent wygranych")
+pi_grupa_b[,2] <- c("DRX", "Royal Never Give Up", "MAD Lions", "Saigon Buffalo", "Isurus", "Istanbul Wildcats")
+
+pi_b_popover <- c("Awans z pierwszego miejsca", "Awans z drugiego miejsca","Eliminacja", "Eliminacja", "Eliminacja", "Eliminacja")
+
+pi_grupa_b <- cbind(pi_grupa_b, pop = pi_b_popover)
+
+
+logo_urls <- page_pi %>% html_elements("td.tournament-roster-logo-cell") %>% html_element("img") %>% html_attr("data-src")
+logo_names <- page_pi %>% html_elements("td.tournament-roster-logo-cell") %>% html_element("img") %>% html_attr("data-image-key") %>% str_remove_all(pattern = "logo_square")
+
+for (i in 1:length(logo_urls)) {
+  GET(logo_urls[i], write_disk(paste0(getwd(),"/img/team_logo/",logo_names[i]), overwrite = TRUE))
+}
+
+pi_a_images <- c(paste0(getwd(),'/img/team_logo/Fnatic.png'),paste0(getwd(),"/img/team_logo/Evil_Geniuses_2020.png"),paste0(getwd(),"/img/team_logo/LOUD.png"),paste0(getwd(),"/img/team_logo/DetonatioN_FocusMe.png"),paste0(getwd(),"/img/team_logo/Beyond_Gaming.png"),paste0(getwd(),"/img/team_logo/The_Chiefs_eSports_Club.png"))
+
+
+pi_b_images <- c(paste0(getwd(),'/img/team_logo/DRX.png'),paste0(getwd(),"/img/team_logo/Royal_Never_Give_Up.png"),paste0(getwd(),"/img/team_logo/MAD_Lions.png"),paste0(getwd(),"/img/team_logo/Saigon_Buffalo.png"),paste0(getwd(),"/img/team_logo/Isurus.png"),paste0(getwd(),"/img/team_logo/Istanbul_Wildcats.png"))
+
+#Grupy w fazie grupowej
+url4 <- "https://lol.fandom.com/wiki/2022_Season_World_Championship/Main_Event"
+
+page_me <- read_html(url4)
+
+me_tables <- html_table(page_me)
+me_grupa_a <- me_tables[24][[1]]
+me_grupa_b <- me_tables[27][[1]]
+me_grupa_c <- me_tables[30][[1]]
+me_grupa_d <- me_tables[33][[1]]
+
+me_grupa_a <- me_grupa_a[-c(1:5), -c(5:8)]
+names(me_grupa_a) <- c("Miejsce", "Drużyna", "Zwycięstwa-Porażki", "Procent wygranych")
+me_grupa_a[,2] <- c("T1", "EDward Gaming", "Fnatic", "Cloud9")
+
+me_grupa_b <- me_grupa_b[-c(1:5), -c(5:8)]
+names(me_grupa_b) <- c("Miejsce", "Drużyna", "Zwycięstwa-Porażki", "Procent wygranych")
+me_grupa_b[,2] <- c("JD Gaming", "DWG KIA", "Evil Geniuses", "G2 Esports")
+
+me_grupa_c <- me_grupa_c[-c(1:5), -c(5:8)]
+names(me_grupa_c) <- c("Miejsce", "Drużyna", "Zwycięstwa-Porażki", "Procent wygranych")
+me_grupa_c[,2] <- c("DRX", "Rogue", "Top Esports", "GAM Esports")
+
+me_grupa_d <- me_grupa_d[-c(1:5), -c(5:8)]
+names(me_grupa_d) <- c("Miejsce", "Drużyna", "Zwycięstwa-Porażki", "Procent wygranych")
+me_grupa_d[,2] <- c("Gen.G", "Royal Never Give Up", "100 Thieves", "CTBC Flying Oyster")
+
+logo_me_urls <- page_me %>% html_elements("td.tournament-roster-logo-cell") %>% html_element("img") %>% html_attr("data-src")
+logo_me_names <- page_me %>% html_elements("td.tournament-roster-logo-cell") %>% html_element("img") %>% html_attr("data-image-key") %>% str_remove_all(pattern = "logo_square") %>% str_remove_all(pattern = "%28") %>% str_remove_all(pattern = "%29")
+
+for (i in 1:length(logo_me_urls)) {
+  GET(logo_me_urls[i], write_disk(paste0(getwd(),"/img/team_logo/",logo_me_names[i]), overwrite = TRUE))
+}
+
+me_a_images <- c(paste0(getwd(),'/img/team_logo/T1.png'),paste0(getwd(),"/img/team_logo/EDward_Gaming.png"),paste0(getwd(),"/img/team_logo/Fnatic.png"),paste0(getwd(),"/img/team_logo/Cloud9.png"))
+
+me_b_images <- c(paste0(getwd(),'/img/team_logo/JD_Gaming.png'),paste0(getwd(),"/img/team_logo/DWG_KIA.png"),paste0(getwd(),"/img/team_logo/Evil_Geniuses_2020.png"),paste0(getwd(),"/img/team_logo/G2_Esports.png"))
+
+me_c_images <- c(paste0(getwd(),'/img/team_logo/DRX.png'),paste0(getwd(),"/img/team_logo/Rogue_European_Team.png"),paste0(getwd(),"/img/team_logo/Top_Esports.png"),paste0(getwd(),"/img/team_logo/GAM_Esports.png"))
+
+me_d_images <- c(paste0(getwd(),'/img/team_logo/Gen.G.png'),paste0(getwd(),"/img/team_logo/Royal_Never_Give_Up.png"),paste0(getwd(),"/img/team_logo/100_Thieves.png"),paste0(getwd(),"/img/team_logo/CTBC_Flying_Oyster.png"))
+
+#Roster drużyn
+url6 <- "https://lol.fandom.com/wiki/2022_Season_World_Championship/Main_Event/Team_Rosters"
+
+page_tr <- read_html(url6)
+
+tr_ids <- page_tr %>% html_elements(".multirow-highlighter .extended-rosters-id") %>% html_text()
+tr_roles <- page_tr %>% html_elements("span.sprite.role-sprite") %>% html_attr("title")
+tr_country <- page_tr %>% html_elements("span.sprite.country-sprite") %>% html_attr("title")
+tr_residency <- page_tr %>% html_elements("div.region-icon") %>% html_text()
+tr_country_iso <- countrycode(tr_country, "country.name", "iso2c")
+
+roster_table <- tibble(id = tr_ids, role = tr_roles, country = tr_country, region = tr_residency, iso = tr_country_iso)
 ```
 
 ```{r}
@@ -114,12 +326,13 @@ plot_pop <- lol_popularity %>%
                 vjust = 1.5), 
             color = "white", 
             fontface = "bold") +
-  labs(caption = "Źródło: https://activeplayer.io\nOpracowanie własne, Szymon Olędzki", color = "white") +
+  labs(caption = "Źródło: https://activeplayer.io\nOpracowanie własne, Szymon Olędzki", color = "white", y = "Średnia liczba graczy w danym roku") +
   ylim(0,155) +
   geom_hline(yintercept = c(0), color = "white", alpha = 0.5) +
   theme(axis.text.x = element_text(vjust = 7, color = "white", face = "bold", size = 14),
         axis.text.y = element_text(hjust = 1, color = "white", face = "bold", size = 11),
-        axis.title = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_text(color = "white", size = 11),
         axis.ticks.y = element_blank(),
         axis.line.y = element_blank(),
         panel.grid = element_blank(),
@@ -131,50 +344,248 @@ ggbackground(gg = plot_pop, background = bg_img_path)
 
 ```
 
-## Jak wygląda rozgrywka w League of Legends?
+## Podstawy rozgrywki w League of Legends
 
-Podczas gry naprzeciw siebie stają dwie drużyny, każda złożona z 5 graczy. Rozgrywka odbywa się na tzw. **Polach Sprawiedliwości** (*ang.* Fields of Justice), w najbardziej popularnej odmianie gracze walczą na arenie zwanej **Rozpadliną Przywoływaczy** (*ang.* Summoner's Rift), która podzielona jest na 3 aleje i obszary między nimi, zwane "dżunglą". Każdy z 5 graczy w danej drużynie pełni inną rolę, związaną zarówno z pełnionymi zadaniami jak i pozycją zajmowaną na mapie w początkowym etapie gry.
+Podczas gry naprzeciw siebie stają dwie drużyny, każda złożona z 5 graczy. Rozgrywka odbywa się na tzw. **Polach Sprawiedliwości** (*ang.* Fields of Justice), w najbardziej popularnej odmianie gracze, za pomocą wybranych przed rozgrywką **bohaterów**, walczą na arenie zwanej **Rozpadliną Przywoływaczy** (*ang.* Summoner's Rift), która podzielona jest na 3 aleje i obszary między nimi, zwane "dżunglą". Każdy z 5 graczy w danej drużynie pełni inną rolę, związaną zarówno z pełnionymi zadaniami jak i pozycją zajmowaną na mapie w początkowym etapie gry.
 
 ::: {#fig-srift}
-![](img/summoners_rift.jpg)
+[![](img/summoners_rift.jpg)](https://nexus.leagueoflegends.com/en-us/2019/12/unleashing-the-elements/)
 
 Widok z lotu ptaka na mapę Summoner's Rift
 :::
 
-Celem gry jest zdobycie bazy przeciwnika oraz zniszczenie tzw. **Nexusa**, który znajduje się w jej centrum. Oprócz bohaterów, którymi kierują gracze, bazy bronią również przyjazne (a w przypadku bazy przeciwnika wrogie) **Stwory** (*ang.* Minion, Creep), które automatycznie pojawiają się na mapie co 30 sekund i poruszają się wzdłuż trzech alei. Obiektami stałymi, aczkolwiek podatnymi na zniszczenie są **wieże** (*ang.* Turret, Tower) oraz **inhibitory**, które są jedynymi odradzającymi się "budynkami". Aby zaatakować wrogi Nexus należy:
+Celem gry jest zdobycie bazy przeciwnika oraz zniszczenie tzw. **nexusa**, który znajduje się w jej centrum. Oprócz bohaterów, którymi kierują gracze, bazy bronią również przyjazne (a w przypadku bazy przeciwnika wrogie) **stwory** (*ang.* minion, creep), które automatycznie pojawiają się na mapie co 30 sekund i poruszają się wzdłuż trzech alei, w konkretnych miejscach w dżungli natomiast, można napotkać na **potwory**, **duże potwory** gwarantujące graczom specjalne efekty, a także **smoki**, **Herolda** i **Barona Nashora**, którego pokonanie często jest kluczowe dla wygrania na późnym etapie gry. Obiektami stałymi, aczkolwiek podatnymi na zniszczenie są **wieże** (*ang.* turret, tower) oraz **inhibitory**, które są jedynymi odradzającymi się "budynkami". Aby zaatakować wrogi nexus należy:
 
 1.  Zniszczyć przynajmniej 3 wrogie wieże na jednej z alei.
 
 2.  Zniszczyć inhibitor położony przy tej samej alei.
 
-3.  Zniszczyć obie wieże Nexusa.
+3.  Zniszczyć obie wieże nexusa.
 
-Zniszczenie wrogiego inhibitora pozwala na pojawianie się znacznie potężniejszych przyjaznych Stworów, jednak tylko do czasu odrodzenia się inhibitora przy danej alei. Zniszczenie Nexusa przeciwnika oznacza natychmiastowy koniec rozgrywki oraz zwycięstwo drużyny go niszczącej.
+Zniszczenie wrogiego inhibitora pozwala na pojawianie się znacznie potężniejszych przyjaznych Stworów, jednak tylko do czasu odrodzenia się inhibitora przy danej alei. Zniszczenie nexusa przeciwnika oznacza natychmiastowy koniec rozgrywki oraz zwycięstwo drużyny go niszczącej.
 
-## Profesjonalne rozgrywki League of Legends
+# Profesjonalne rozgrywki League of Legends
 
-Profesjonalna scena *League of Legends* ma swoje korzenie w zawartym w grze systemie rankingowym. W zależności od wybranego trybu gracze mogą zmierzyć się również w grach, które wpływają na ich ranking. Pierwotny system rankingowy został zaprojektowany dzięki inspiracji szachowym rankingiem Elo, który w zależności od różnych czynników, a ostatecznie od rezultatu gry, przypisuje graczom za dany mecz dodatnie lub ujemne punkty.
+## Gry rankingowe - geneza mistrzostw świata
 
-Ranking w obecnej postaci oparty jest na systemie **Kręgów** (*ang*. Tier) zaprezentowanych na poniższej ilustracji oraz dywizji w każdym z nich.
+Profesjonalna scena *League of Legends* ma swoje korzenie w zawartym w grze systemie rankingowym. W zależności od wybranego trybu gracze mogą zmierzyć się również w grach, które wpływają na ich ranking. Pierwotny system rankingowy został zaprojektowany dzięki inspiracji [szachowym rankingiem Elo](https://pl.wikipedia.org/wiki/Ranking_szachowy "Wikipedia - ranking szachowy"), który w zależności od różnych czynników, a ostatecznie od rezultatu gry, przypisuje graczom za dany mecz dodatnie lub ujemne punkty.
+
+Ranking w obecnej postaci oparty jest na systemie **kręgów** (*ang*. Tier) zaprezentowanych na poniższej ilustracji oraz dywizji w każdym z nich (z wyjątkiem trzech najwyższych kręgów).
 
 ::: {#fig-ranked}
-![](img/lol_ranks.jpeg)
+[![](img/lol_ranks.jpeg)](https://polscygracze.pl/nowosci-w-rankingu-2019/)
 
 Kręgi systemu rankingowego League of Legends (od lewej: żelazo, brąz, srebro, złoto, platyna, diament, mistrz, arcymistrz, pretendent)
 :::
 
 Dzięki zwycięstwom w grach rankingowych gracze mogą awansować do kolejnych dywizji, a następnie do wyższych kręgów. Gracze z najwyższych kręgów mogą zostać zrekrutowani przez organizacje e-sportowe, które dostrzegą ich potencjał lub sami mogą zgłosić się gdy jakiś zespół ogłosi nabór do drużyny. Najlepsze zespoły biorą udział w rozgrywkach na poziomie regionalnym organizowanych przez *Riot Games*, w których walczą o tytuł mistrza w danym regionie i o udział w corocznych mistrzostwach świata.
 
+## Historia mistrzostw świata
+
+Pierwsza edycja mistrzostw świata *League of Legends* odbyła się w 2011 roku jako jedno z wydarzeń w trakcie Dreamhack Summer 2011. W pierwszym, historycznym turnieju udział wzięło 8 drużyn z Europy, Ameryki Północnej i Azji, a pula nagród wyniosła 100 tysięcy dolarów. Wszystkie mecze turnieju rozgrywane były w formule LAN (offline), szacuje się, że widownia w trakcie wydarzenia liczyła około 200 osób, ale już wówczas cały turniej zgromazdził przed ekranami komputerów ponad 1.6 miliona widzów, z rekordem ok. 210 tysięcy oglądających jednocześnie w trakcie trzech finałowych gier. Zwycięzcą historycznego wydarzenia została drużyna Fnatic, a tytuł MVP (*ang.* Most Valuable Player) otrzymał zawodnik ze środkowej alei po stronie Fnatic - Maciej *"Shushei"* Ratuszniak - jak dotychczas jedyny polak, któremu udało się sięgnąć po mistrzowski tytuł. Turniej okazał się być sukcesem na skalę światową, przynosząc *League of Legends* coraz więcej nowych graczy wraz z każdą kolejną edycją.
+
+::: {#fig-panel2 layout="[[49.5,-5,45.5], [100]]"}
+[![Finał Mistrzostw Świata 2011, Elmiavägen w Jönköping, Szwecja](img/Worlds_2011.jpg){#fig-w11}](https://lol.fandom.com/wiki/Season_1_World_Championship#/media/File:WorldsSeason1.jpg)
+
+[![Maciej "Shushei" Ratuszniak, Mistrzostwa Świata 2011](img/FNC_Shushei_Worlds_2011.jpg){#fig-msr}](https://liquipedia.net/leagueoflegends/File:FNC_Shushei_Worlds_2011.jpg)
+
+[![Arena finałów Mistrzostw Świata 2022, Chase Center, San Francisco, USA](img/Chase_Center.jpg){#fig-w22}](https://lol.fandom.com/wiki/2022_Season_World_Championship?file=Chase_Center.jpg)
+
+Zdjęcia archiwalne z mistrzostw świata
+:::
+
+Mistrzostwa świata *League of Legends*, z początkowej pozycji jednego z wydarzeń w trakcie większego wówczas Dreamhack Summer 2011, urosły z czasem do coraz większych (od 2012 roku już samodzielnych) wydarzeń, projektowanych na coraz większą skalę, w coraz większych obiektach, takich jak hale i stadiony sportowe. Wzrost popularności gry spowodował wzrost widzów i puli nagród w kolejnych latach. Od 2019 ustalono wysokość minimalnej puli nagród w wysokości 2.25 miliona dolarów, na ostateczną wysokość puli mają wpływ gracze *League of Legends* przez dokonywane w grze zakupy w postaci mikrotransakcji.
+
+# Mistrzostwa Świata 2022
+
+::: {#fig-w22logo}
+[![](img/Worlds_2022.jpg)](https://lol.fandom.com/wiki/2022_Season_World_Championship#/media/File:Worlds_2022.png)
+
+Oficjalne logo Mistrzostw Świata 2022
+:::
+
+29 września 2022 roku rozpoczął się cykl wydarzeń w ramach Mistrzostw Świata *League of Legends* 2022. Mistrzostwa są podzielone na dwie odrębne fazy - fazę Play-In oraz tzw. Main Event, który składa się z fazy grupowej (*ang.* group stage) i fazy eliminacji (*ang.* knockout stage). Zostały zaproszone 24 drużyny - z rozgrywek regionalnych do fazy grupowej zakwalifikowało się 12 drużyn, pozostałych 12 zespołów wzięło udział w fazie Play-In, po której 4 z nich zakwalifikowały się do fazy grupowej.
+
+Fazy Play-In i grupowa zostały przeprowadzone w formacie podwójnego cyklu kołowego (*ang.* double round robin), w którym każda z drużyn w danej grupie rozgrywa z innymi drużynami po 2 gry. Z każdej z grup do dalszego etapu awansują dwie drużyny z największą liczbą zwycięstw. W przypadku jednakowej liczby zwycięstw przeprowadzane jest dogrywka (*ang.* tiebreaker), której wynik decyduje o układzie drużyn na dalszym etapie rozgrywek.
+
+## Wyniki fazy Play-In
+
+W fazie Play-In rozegrano łącznie 47 gier w 36 meczach. Zwycięsko z tego etapu rozgrywek awansowały dalej 4 drużyny: Fnatic i Evil Geniuses (po wygranych dogrywkach z DetonatioN FocusMe oraz LOUD) z grupy A oraz DRX i Royal Never Give Up z grupy B.
+
+```{r}
+#| label: tbl-play_in_a
+#| tbl-cap: Tabela wyników fazy Play-In w grupie A
+
+pi_grupa_a %>%
+  select(1:4) %>%
+  kbl(align = c("c", "l", "c", "c")) %>%
+  kable_material_dark() %>%
+  kable_styling(bootstrap_options = c("none"), full_width = F) %>%
+  row_spec(1:2, background = "darkgreen") %>%
+  column_spec(2, image = spec_image(pi_a_images, 70, 70)) %>%
+  footnote(general = "Drużyna Evil Geniuses awansowała z drugiego miejsca po wygranych dogrywkach z DetonatioN FocusMe oraz LOUD.\nDane w tabeli prezentują wyniki sprzed dogrywek.", general_title = "Uwaga dla drużyny Evil Geniuses", fixed_small_size = T)
+
+```
+
+```{r}
+#| label: tbl-play_in_b
+#| tbl-cap: Tabela wyników fazy Play-In w grupie B
+
+pi_grupa_b %>%
+  select(1:4) %>%
+  kbl(align = c("c", "l", "c", "c")) %>%
+  kable_material_dark() %>%
+  kable_styling(bootstrap_options = c("none"), full_width = F) %>%
+  row_spec(1:2, background = "darkgreen") %>%
+  column_spec(2, image = spec_image(pi_b_images, 70, 70)) %>%
+  column_spec(3, popover = pi_grupa_b$pop[1:6])
+
+
+```
+
+## Wyniki fazy grupowej
+
+W fazie grupowej rozegrano łącznie 51 gier (w tym 3 dogrywki). Do drabinki eliminacyjnej awansowało 8 drużyn: T1 oraz EDward Gaming z grupy A, JD Gaming oraz DWG KIA z grupy B, DRX oraz Rogue z grupy C, a także Gen.G oraz Royal Never Give Up z grupy D.
+
+```{r}
+#| label: tbl-main_gr_a
+#| tbl-cap: Tabela wyników fazy grupowej w grupie A
+
+me_grupa_a %>%
+  kbl(align = c("c", "l", "c", "c")) %>%
+  kable_material_dark() %>%
+  kable_styling(bootstrap_options = c("none"), full_width = F) %>%
+  row_spec(1:2, background = "darkgreen") %>%
+  column_spec(2, image = spec_image(me_a_images, 70, 70))
+
+```
+
+```{r}
+#| label: tbl-main_gr_b
+#| tbl-cap: Tabela wyników fazy grupowej w grupie B
+
+me_grupa_b %>%
+  kbl(align = c("c", "l", "c", "c")) %>%
+  kable_material_dark() %>%
+  kable_styling(bootstrap_options = c("none"), full_width = F) %>%
+  row_spec(1:2, background = "darkgreen") %>%
+  column_spec(2, image = spec_image(me_b_images, 70, 70)) %>%
+  footnote(general = "Drużyna JD Gaming awansowała z pierwszego miejsca po wygranej dogrywce z DWG KIA.\nDane w tabeli prezentują wyniki sprzed dogrywki.", general_title = "Uwaga dla drużyny JD Gaming")
+```
+
+```{r}
+#| label: tbl-main_gr_c
+#| tbl-cap: Tabela wyników fazy grupowej w grupie C
+
+me_grupa_c %>%
+  kbl(align = c("c", "l", "c", "c")) %>%
+  kable_material_dark() %>%
+  kable_styling(bootstrap_options = c("none"), full_width = F) %>%
+  row_spec(1:2, background = "darkgreen") %>%
+  column_spec(2, image = spec_image(me_c_images, 70, 70)) %>%
+  footnote(general = "Drużyna DRX awansowała z pierwszego miejsca po wygranej dogrywce z Rogue.\nDane w tabeli prezentują wyniki sprzed dogrywki.", general_title = "Uwaga dla drużyny DRX")
+```
+
+```{r}
+#| label: tbl-main_gr_d
+#| tbl-cap: Tabela wyników fazy grupowej w grupie D
+
+me_grupa_d %>%
+  kbl(align = c("c", "l", "c", "c")) %>%
+  kable_material_dark() %>%
+  kable_styling(bootstrap_options = c("none"), full_width = F) %>%
+  row_spec(1:2, background = "darkgreen") %>%
+  column_spec(2, image = spec_image(me_d_images, 70, 70)) %>%
+  footnote(general = "Drużyna Gen.G awansowała z pierwszego miejsca po wygranej dogrywce z Royal Never Give Up.\nDane w tabeli prezentują wyniki sprzed dogrywki.", general_title = "Uwaga dla drużyny Gen.G")
+```
+
+## Wyniki finałów
+
+Faza grupowa wyłoniła 8 drużyn, które w zależności od pozycji w grupie zajęły dane miejsca w drabince fazy eliminacji. Po siedmiu meczach w formacie *best of 5* (do 3 wygranych) zwycięzcą turnieju okazała się koreańska drużyna **DRX**. W emocjonującym finale dopiero ostatnia piąta gra wyłoniła zwycięzcę Mistrzostw Świata 2022.
+
+::: {#fig-finals}
+![](img/drx-win-worlds-2022.jpg){fig-align="center"}
+
+Drużyna DRX z pucharem mistrzowskim, zdjęcie dzięki uprzejmości Riot Games
+:::
+
+## Najciekawsze statystyki z Mistrzostw Świata 2022
+
+W trakcie głównych rozgrywek ubiegłorocznych mistrzostw rozegrano łącznie **80 gier**, w których wzięło udział **82 graczy**, natomiast w fazie wyboru bohaterów pojawiły się łącznie **94 postaci**. Nie są to jednak najbardziej intrygujące dane liczbowe z Mistrzostw Świata 2022. W poniższych tabelach i wykresach przedstawiam najciekawsze według mnie statystyki, jakie udało mi się znaleźć.
+
+### Statystyki dotyczące zawodników
+
+Jak możemy zauważyć na poniższym wykresie, zawodnicy z Azji zdecydowanie dominują pod względem ilości. Jest to związane w dużym stopniu z wysoką popularnością gier z gatunku MOBA w Azji, wysokim poziomem rozgrywek w regionalnych ligach oraz bardzo wysoką konkurencją, zwłaszcza na koreańskim i chińskim rynku profesjonalnych zawodników.
+
+```{r}
+#| label: fig-player_roster
+#| fig-cap: Wykres ilości graczy w podziale na państwa (dane z fazy grupowej i fazy eliminacji)
+
+plot_roster <- roster_table %>%
+  filter(role != 'Coach') %>%
+  filter(role != 'Assistant Coach') %>%
+  group_by(iso) %>%
+  summarize(Players_from_country = n()) %>%
+  #slice_max(Players_from_country, n = 10) %>%
+  ggplot(aes(x = reorder(iso, Players_from_country),
+             y = Players_from_country)) +
+  geom_hline(yintercept = c(10, 20, 30), color = "white") +
+  geom_bar(stat = "identity", fill = "#C89B3C") +
+  geom_text(aes(y = Players_from_country, 
+                label = Players_from_country, 
+                hjust = 1.3), 
+            color = "white", 
+            fontface = "bold") +
+  expand_limits(y = -1) +
+  geom_flag(y = -2, mapping = aes(image = iso)) +
+  labs(y = "Liczba zawodników z danego państwa") +
+  geom_hline(yintercept = c(0), color = "white") +
+  coord_flip() +
+  labs(caption = "Źródło: https://lol.fandom.com\nOpracowanie własne, Szymon Olędzki", color = "white") +
+  theme(axis.title.y = element_blank(),
+        axis.title.x = element_text(color = "white", size = 11),
+        axis.text.x = element_text(vjust = 1, color = "white", face = "bold", size = 14),
+        axis.text.y = element_text(hjust = 1, color = "white", face = "bold", size = 11),
+        axis.ticks.x = element_blank(),
+        axis.line = element_blank(),
+        panel.grid = element_blank(),
+        plot.caption = element_text(color = "white", face = "italic", size = 9)
+        )
+
+ggbackground(gg = plot_roster, background = bg_img_path)
+
+```
+
+Jednym z najważniejszych czynników gry na najwyższym poziomie jest zdobywanie złota, które przekłada się później na zakup przedmiotów wzmacniających znacznie statystyki danego bohatera. Przyjmuje się, że najlepsi gracze powinni osiągać średnio około 300 **cs** (*ang.* creep score - liczba zabitych stworów) na grę, jest to jednak liczba zależna od pełnionej w drużynie roli.
+
+```{r}
+#| label: tbl-creepscore
+#| tbl-cap: Gracze, z najwyższym wynikiem zabitych stworów na grę (dane z fazy grupowej i fazy eliminacji)
+
+player_with_champs %>%
+  select(`Zawodnik` = Player, `Średnia pokonanych stworów` =  Creep_score, `Średnio zdobytego złota na grę (tys.)` =  Gold_k) %>%
+  filter(`Średnia pokonanych stworów` >= 300) %>%
+  arrange(-`Średnia pokonanych stworów`) %>%
+  kbl(align = c('l','c','c')) %>%
+  kable_material_dark() %>%
+  column_spec(1, image = spec_image(cs300_img, 70, 70))
+
+```
+
+### Statystyki dotyczące bohaterów
+
+Stuprocentowa frekwencja Aatroxa w fazie wyboru bohaterów prowadzi do następującego wniosku - był on najważniejszym bohaterem ostatnich mistrzostw świata. Takie sytuacje zdarzają się zwłaszcza na poziomie rozgrywek profesjonalnych, chociaż dotyczą one również rozgrywek nieprofesjonalnych. Gry takie jak *League of Legends* są (zazwyczaj) stosunkowo często aktualizowane przez deweloperów, ponieważ przy tak dużej liczbie bohaterów jaką dysponują niebywale trudnym zadaniem jest zbalansowanie rozgrywki tak, by żaden z nich nie miał nadmiernej przewagi nad pozostałymi. Czasami jednak sygnały o przewadze danego bohatera dochodzą do deweloperów zbyt późno, bądź oni sami decydują się na wprowadzenie zmian np. gdy dany bohater potrzebuje "odświeżenia" umiejętności i statystyk bazowych, co z reguły dotyczy bohaterów znajdujących się w grze od wielu lat.
+
 ```{r}
 #| label: fig-lolcontested
-#| fig-cap: Wykres pięciu najczęściej pojawiających się w fazie draftu bohaterów
+#| fig-cap: Wykres pięciu najczęściej pojawiających się w fazie wyboru bohaterów (dane z fazy grupowej i fazy eliminacji)
 
 plot_champ_stat1 <- champ_stats %>%
   slice_max(Pick_ban_n, n = 5) %>%
   arrange(-Pick_ban_n) %>%
   ggplot(aes(x = reorder(Champion_name, -Pick_ban_n), 
              y = Pick_ban_n,
-             image = load_img_path)) +
+             image = loading_img_path)) +
   ylim(0,80) +
   geom_hline(yintercept = c(20,40,60,80), color = "white", alpha = 0.5) +
   geom_bar_pattern(stat = "identity",
@@ -182,7 +593,7 @@ plot_champ_stat1 <- champ_stats %>%
                    width = 0.6,
                    pattern = 'image',
                    pattern_type = 'expand',
-                   pattern_filename = load_img_path[1:5]) +
+                   pattern_filename = loading_img_path[1:5]) +
   geom_hline(yintercept = c(0), 
              color = "white", 
              alpha = 0.5) +
@@ -191,10 +602,11 @@ plot_champ_stat1 <- champ_stats %>%
                 size = 10 ,vjust = 1.5), 
             color = "white", 
             fontface = "bold") +
-  labs(caption = "Źródło: https://lol.fandom.com\nOpracowanie własne, Szymon Olędzki", color = "white") +
+  labs(caption = "Źródło: https://lol.fandom.com\nOpracowanie własne, Szymon Olędzki", color = "white", y = "Ilość wyborów lub banów danego bohatera") +
   theme(axis.text.x = element_text(vjust = 7, color = "white", face = "bold", size = 14),
         axis.text.y = element_text(hjust = 1.5, color = "white", face = "bold", size = 11),
-        axis.title = element_blank(),
+        axis.title.y = element_text(color = "white", size = 11),
+        axis.title.x = element_blank(),
         axis.ticks = element_blank(),
         axis.line = element_blank(),
         panel.grid = element_blank(),
@@ -205,3 +617,46 @@ plot_champ_stat1 <- champ_stats %>%
 
 ggbackground(gg = plot_champ_stat1, background = bg_img_path)
 ```
+
+Jednak jak się okazuje, Aatrox był dużo chętniej banowany, niż wybierany. Jak można zauważyć w poniższej tabeli, był on dopiero na 10 miejscu spośród 10 najczęściej wybieranych bohaterów. W blisko połowie gier widzowie mogli ujrzeć Azira, natomiast najwięcej pojedynczych zawodników, bo aż 17, wybrało podczas rozgrywek Sejuani.
+
+```{r}
+#| label: tbl-mostpicked
+#| tbl-cap: Dziesięciu najczęściej wybieranych bohaterów (dane z fazy grupowej i fazy eliminacji)
+
+picked_ten <- champ_stats %>%
+  mutate(Games_played_perc = Games_played/80*100) %>%
+  select(`Bohater` = Champion_name, `Udział w grach (%)` = Games_played_perc, `Ilu graczy wybrało bohatera` = By_n_players,  `Zwycięstwa (%)` = Win_rate_perc) %>%
+  slice_max(`Udział w grach (%)`, n = 10)
+
+picked_ten %>%
+  kbl(align = c("l", "c", "c", "c")) %>%
+  kable_material_dark() %>%
+  column_spec(1, image = spec_image(most_picked_ten, 100, 100))
+
+```
+
+W poniższej tabeli można zauważyć, że Yuumi jako bohaterka wygrała wszystkie gry, w których wzięła udział. Nie powinno dziwić zatem, że została zbanowana w aż 85% rozegranych gier.
+
+```{r}
+#| label: tbl-mostbanned
+#| tbl-cap: Dziesięciu najczęściej banowanych bohaterów (dane z fazy grupowej i fazy eliminacji)
+
+champ_stats %>%
+  mutate(Banned_perc = Banned/80*100) %>%
+  select(`Nazwa bohatera` = Champion_name, `W fazie wyboru (na 80 gier)` = Pick_ban_n, `Zbanowano w grach (%)` = Banned_perc, `Zwycięstwa (%)` = Win_rate_perc) %>%
+  slice_max(`Zbanowano w grach (%)`, n = 10) %>%
+  kbl(align = c("l", "c", "c", "c")) %>%
+  kable_material_dark() %>%
+  column_spec(1, image = spec_image(most_banned_ten, 100, 100))
+
+```
+
+Biorąc pod uwagę dane z trzech powyższych wykresów i tabel można dostrzec powtarzających się najczęściej bohaterów. Najczęściej wybierani lub banowani bohaterowie stanowią tzw. **metę** gry w trakcie danej aktualizacji (całe mistrzostwa rozegrano na patchu 12.18), jest to grupa najsilniejszych w danym okresie bohaterów. Na najwyższym poziomie rozgrywek zawodnicy są zaznajomieni z całą pulą bohaterów odpowiednich dla danej roli, zatem najczęściej decydują się na wybór tych, którzy są najsilniejsi w aktualnej mecie. Oczywiście zdarzają się wybory niestandardowe, natomiast takie sytuacje zdarzają się zazwyczaj tylko wtedy, gdy drużyna w fazie wyboru chce skontrować wybór przeciwnika.
+
+# Źródła
+
+1.  <https://lol.fandom.com/wiki/2022_Season_World_Championship>
+2.  <https://gol.gg/tournament/tournament-picksandbans/World%20Championship%202022/>
+3.  <https://activeplayer.io/league-of-legends/>
+4.  Użyte zdjęcia mają źródła podane indywidualnie.

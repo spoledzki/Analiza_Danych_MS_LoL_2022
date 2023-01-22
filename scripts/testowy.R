@@ -4,6 +4,9 @@ library(ggimage)
 library(lubridate)
 library(ggpattern)
 library(countrycode)
+library(httr)
+library(knitr)
+library(kableExtra)
 
 ####PLAYER STATS
 
@@ -49,6 +52,27 @@ Team <- c(rep("100 Thieves", times = 5), rep("Cloud9", times = 5), rep("CTBC Fly
 
 player_with_champs <- cbind(Team, player_with_champs)
 
+nowe_nazwy_player <- c("Team", "Player", "Games", "Win", "Lose", "Win_rate_perc", "Kills", "Deaths", "Assists", "KDA_ratio", "Creep_score", "Creep_score_min", "Gold_k", "Gold_min", "Damage_k", "Damage_min", "Kill_part_perc", "Kill_share_perc", "Gold_share_perc", "Champs_played", "Most_picked1","Most_picked2","Most_picked3")
+
+names(player_with_champs) <- nowe_nazwy_player
+
+player_with_champs[,3:20] <- player_with_champs[,3:20] %>%
+  mutate(across(.fns = ~ parse_number(.x)))
+
+player_with_champs %>%
+  select(Team, Player, Creep_score, Gold_k) %>%
+  filter(Creep_score >= 300) %>%
+  arrange(-Creep_score)
+
+player_with_champs %>%
+  group_by(Team) %>%
+  summarize(Team_gold_min = sum(Gold_min)) %>%
+  arrange(Team_gold_min)
+
+player_with_champs %>%
+  slice_max(Champs_played, n = 10) %>%
+  kbl() %>%
+  kable_material_dark()
 
 ####CHAMPION STATS
 url2 <- "https://lol.fandom.com/wiki/2022_Season_World_Championship/Main_Event/Champion_Statistics"
@@ -64,21 +88,103 @@ champ_stats <- champ_stats[-1,]
 
 champ_stats[champ_stats == "-"] <- NA
 
-nowe_nazwy <- c("Champion_name", "Pick_ban_n", "Pick_ban_perc", "Banned", "Games_played", "By_n_players", "Win", "Lose", "Win_rate_perc", "Kills", "Deaths", "Assists", "KDA_ratio", "Creep_score", "Creep_score_min", "Gold_k", "Gold_min", "Damage_k", "Damage_min", "Kill_part_perc", "Kill_share_perc", "Gold_share_perc")
+nowe_nazwy_champ <- c("Champion_name", "Pick_ban_n", "Pick_ban_perc", "Banned", "Games_played", "By_n_players", "Win", "Lose", "Win_rate_perc", "Kills", "Deaths", "Assists", "KDA_ratio", "Creep_score", "Creep_score_min", "Gold_k", "Gold_min", "Damage_k", "Damage_min", "Kill_part_perc", "Kill_share_perc", "Gold_share_perc")
 
-names(champ_stats) <- nowe_nazwy
+names(champ_stats) <- nowe_nazwy_champ
 
 champ_stats[,2:22] <- champ_stats[,2:22] %>%
   mutate(across(.fns = ~ parse_number(.x)))
 
+champ_stats %>%
+  slice_max(Games_played, n = 10)
 
+champ_stats %>%
+  slice_max(Win_rate_perc, n = 10) %>%
+  arrange(-Games_played)
+
+champ_stats %>%
+  slice_max(By_n_players, n = 10) %>%
+  select(Champion_name, Games_played, By_n_players, Win_rate_perc)
+
+champ_stats %>%
+  mutate(Games_played_perc = Games_played/80*100) %>%
+  select(`Nazwa bohatera` = Champion_name, `Udział w grach` = Games_played , `Udział w grach (%)` = Games_played_perc, `Zwycięstwa (%)` = Win_rate_perc) %>%
+  slice_max(`Udział w grach (%)`, n = 10) %>%
+  kbl() %>%
+  kable_material_dark() %>%
+  column_spec(1, image = spec_image(most_picked_ten, 100, 100))
+
+champ_stats %>%
+  mutate(Banned_perc = Banned/80*100) %>%
+  select(`Nazwa bohatera` = Champion_name, `W fazie wyboru (na 80 gier)` = Pick_ban_n, `Zbanowano w grach (%)` = Banned_perc, `Zwycięstwa (%)` = Win_rate_perc) %>%
+  slice_max(`Zbanowano w grach (%)`, n = 10) %>%
+  kbl() %>%
+  kable_material_dark()
+
+#Wektor małych img bohaterów
+
+icons_url <- "https://gol.gg/tournament/tournament-picksandbans/World%20Championship%202022/"
+
+champ_icon_urls <- read_html(icons_url) %>% html_elements("img.champion_icon") %>% html_attr("src")
+
+champ_icon_urls <- unlist(str_sub_all(champ_icon_urls, start = 3))
+
+icon_names <- unlist(str_sub_all(champ_icon_urls, start = 20))
+
+for (i in 1:length(champ_icon_urls)) {
+  GET(paste0("gol.gg/_", champ_icon_urls[i]), write_disk(paste0(getwd(),"/img/mini/", icon_names[i]), overwrite = TRUE))
+}
+
+img_icon_path <- c()
+for (i in 1:length(icon_names)) {
+  img_icon_path <- c(img_icon_path, paste0(getwd(),"/img/mini/", icon_names[i]))
+}
+
+most_picked_ten <- c(paste0(getwd(),"/img/mini/Azir.png"),paste0(getwd(),"/img/mini/Sylas.png"),paste0(getwd(),"/img/mini/Aphelios.png"),paste0(getwd(),"/img/mini/Sejuani.png"),paste0(getwd(),"/img/mini/Viego.png"),paste0(getwd(),"/img/mini/Lucian.png"),paste0(getwd(),"/img/mini/Nami.png"),paste0(getwd(),"/img/mini/Graves.png"),paste0(getwd(),"/img/mini/Akali.png"),paste0(getwd(),"/img/mini/Aatrox.png"))
 
 #Wektor dużych img bohaterów
-load_img_path <- c(paste0(getwd(),"/img/loading/Aatrox_0.jpg"), paste0(getwd(),"/img/loading/Yuumi_0.jpg"),  paste0(getwd(),"/img/loading/Sejuani_0.jpg"), paste0(getwd(),"/img/loading/Caitlyn_0.jpg"), paste0(getwd(),"/img/loading/Azir_0.jpg"), paste0(getwd(),"/img/loading/Sylas_0.jpg"), paste0(getwd(),"/img/loading/Graves_0.jpg"), paste0(getwd(),"/img/loading/Maokai_0.jpg"), paste0(getwd(),"/img/loading/Lucian_0.jpg"), paste0(getwd(),"/img/loading/Viego_0.jpg"), paste0(getwd(),"/img/loading/Akali_0.jpg"))
 
-load_img_path <- c(load_img_path, rep(NA, times = 83))
+champ_img_url <- "http://ddragon.leagueoflegends.com/cdn/img/champion/loading/"
 
-champ_stats <- cbind(load_img_path, champ_stats)
+nazwy_boh <- pull(champ_stats[,1])
+
+for (i in c(1:22, 24:length(nazwy_boh))) {
+  if (nazwy_boh[i] == "Renata Glasc") {
+    bohater <- "Renata"
+  }
+  else if (nazwy_boh[i] == "Wukong") {
+    bohater <- "MonkeyKing"
+  }
+  else if (nazwy_boh[i] %in% c("Kai'Sa", "Bel'Veth")) {
+    bohater <- nazwy_boh[i] %>% str_remove_all(pattern = "'") %>% str_to_title()
+  }
+  else {
+    bohater <- nazwy_boh[i]
+    bohater <- bohater %>% str_remove_all(pattern = "\\s") 
+  }
+  GET(paste0(champ_img_url, bohater, "_0.jpg"), write_disk(paste0(getwd(),"/img/load2/", bohater,".jpg"), overwrite = TRUE))
+}
+
+loading_img_path <- c()
+
+for (i in 1:length(nazwy_boh)) {
+  if (nazwy_boh[i] == "Renata Glasc") {
+    bohater <- "Renata"
+  }
+  else if (nazwy_boh[i] == "Wukong") {
+    bohater <- "MonkeyKing"
+  }
+  else if (nazwy_boh[i] %in% c("Kai'Sa", "Bel'Veth")) {
+    bohater <- nazwy_boh[i] %>% str_remove_all(pattern = "'") %>% str_to_title()
+  }
+  else {
+    bohater <- nazwy_boh[i]
+    bohater <- bohater %>% str_remove_all(pattern = "\\s") 
+  }
+  loading_img_path <- c(loading_img_path, paste0(getwd(), "/img/load2/", bohater, ".jpg"))
+}
+
+champ_stats <- cbind(loading_img_path, champ_stats)
 
 bg_img_path <- paste0(getwd(),"/img/loading/bg_img.jpg")
 
@@ -88,7 +194,7 @@ plot_champ_stat1 <- champ_stats %>%
   arrange(-Pick_ban_n) %>%
   ggplot(aes(x = reorder(Champion_name, -Pick_ban_n), 
              y = Pick_ban_n,
-             image = load_img_path)) +
+             image = loading_img_path)) +
   ylim(0,80) +
   geom_hline(yintercept = c(20,40,60,80), color = "white", alpha = 0.5) +
   geom_bar_pattern(stat = "identity",
@@ -96,7 +202,7 @@ plot_champ_stat1 <- champ_stats %>%
                    width = 0.6,
                    pattern = 'image',
                    pattern_type = 'expand',
-                   pattern_filename = load_img_path[1:5]) +
+                   pattern_filename = loading_img_path[1:5]) +
   geom_hline(yintercept = c(0), 
              color = "white", 
              alpha = 0.5) +
@@ -119,9 +225,6 @@ plot_champ_stat1 <- champ_stats %>%
 
 ggbackground(gg = plot_champ_stat1, background = bg_img_path)
 
-
-#Pobieranie miniatur bohaterów
-#url4 <- "https://gol.gg/_img/champions_icon/"
 
 #Popularność League of Legends
 url5 <- "https://activeplayer.io/league-of-legends/"
@@ -189,10 +292,15 @@ tr_country_iso <- countrycode(tr_country, "country.name", "iso2c")
 
 roster_table <- tibble(id = tr_ids, role = tr_roles, country = tr_country, region = tr_residency, iso = tr_country_iso)
 
+roster_table %>%
+  filter(role != 'Coach') %>%
+  filter(role != 'Assistant Coach') %>%
+  View()
+
 plot_roster <- roster_table %>%
   group_by(iso) %>%
   summarize(Players_from_country = n()) %>%
-  slice_max(Players_from_country, n = 10) %>%
+  #slice_max(Players_from_country, n = 10) %>%
   ggplot(aes(x = reorder(iso, Players_from_country),
              y = Players_from_country)) +
   geom_hline(yintercept = c(10, 20, 30, 40), color = "white") +
@@ -218,4 +326,86 @@ plot_roster <- roster_table %>%
         )
 
 ggbackground(gg = plot_roster, background = bg_img_path)
-  
+
+
+#GROUPS IN PLAY IN PHASE
+url3 <- "https://lol.fandom.com/wiki/2022_Season_World_Championship/Play-In"
+page_pi <- read_html(url3)
+
+pi_tables <- page_pi %>% html_table()
+
+pi_grupa_a <- pi_tables[20][[1]]
+pi_grupa_b <- pi_tables[23][[1]]
+
+pi_grupa_a <- pi_grupa_a[-c(1:7),-c(5:10)]
+names(pi_grupa_a) <- c("Position", "Team", "Win_Lose", "Win_rate")
+pi_grupa_a[,2] <- c("Fnatic", "Evil Geniuses", "LOUD", "DetonatioN FocusMe", "Beyond Gaming", "Chiefs Esports Club")
+pi_grupa_a <- pi_grupa_a %>% add_column(Logo = "", .after = 1)
+
+pi_grupa_b <- pi_grupa_b[-c(1:7),-c(5:10)]
+names(pi_grupa_b) <- c("Position", "Team", "Win_Lose", "Win_rate")
+pi_grupa_b[,2] <- c("DRX", "Royal Never Give Up", "MAD Lions", "Saigon Buffalo", "Isurus", "Istanbul Wildcats")
+
+
+logo_urls <- page_pi %>% html_elements("td.tournament-roster-logo-cell") %>% html_element("img") %>% html_attr("data-src")
+logo_names <- page_pi %>% html_elements("td.tournament-roster-logo-cell") %>% html_element("img") %>% html_attr("data-image-key") %>% str_remove_all(pattern = "logo_square")
+
+for (i in 1:length(logo_urls)) {
+  GET(logo_urls[i], write_disk(paste0(getwd(),"/img/team_logo/",logo_names[i]), overwrite = TRUE))
+}
+
+pi_grupa_a %>%
+  kbl() %>%
+  kable_material_dark() %>%
+  kable_styling(bootstrap_options = c("condensed"), full_width = F) %>%
+  row_spec(1:2, background = "darkgreen") %>%
+  column_spec(2, image = spec_image(pi_a_images, 60, 60))
+
+pi_a_images <- c(paste0(getwd(),'/img/team_logo/Fnatic.png'),paste0(getwd(),"/img/team_logo/Evil_Geniuses_2020.png"),paste0(getwd(),"/img/team_logo/LOUD.png"),paste0(getwd(),"/img/team_logo/DetonatioN_FocusMe.png"),paste0(getwd(),"/img/team_logo/Beyond_Gaming.png"),paste0(getwd(),"/img/team_logo/The_Chiefs_eSports_Club.png"))
+
+pi_b_images <- c(paste0(getwd(),'/img/team_logo/DRX.png'),paste0(getwd(),"/img/team_logo/Royal_Never_Give_Up.png"),paste0(getwd(),"/img/team_logo/MAD_Lions.png"),paste0(getwd(),"/img/team_logo/Saigon_Buffalo.png"),paste0(getwd(),"/img/team_logo/Isurus.png"),paste0(getwd(),"/img/team_logo/Istanbul_Wildcats.png"))
+
+
+#FAZA GRUPOWA
+url4 <- "https://lol.fandom.com/wiki/2022_Season_World_Championship/Main_Event"
+
+page_me <- read_html(url4)
+
+me_tables <- html_table(page_me)
+me_grupa_a <- me_tables[24][[1]]
+me_grupa_b <- me_tables[27][[1]]
+me_grupa_c <- me_tables[30][[1]]
+me_grupa_d <- me_tables[33][[1]]
+
+me_grupa_a <- me_grupa_a[-c(1:5), -c(5:8)]
+names(me_grupa_a) <- c("Miejsce", "Drużyna", "Zwycięstwa-Porażki", "Procent wygranych")
+me_grupa_a[,2] <- c("T1", "EDward Gaming", "Fnatic", "Cloud9")
+
+me_grupa_b <- me_grupa_b[-c(1:5), -c(5:8)]
+names(me_grupa_b) <- c("Miejsce", "Drużyna", "Zwycięstwa-Porażki", "Procent wygranych")
+me_grupa_b[,2] <- c("JD Gaming", "DWG KIA", "Evil Geniuses", "G2 Esports")
+
+me_grupa_c <- me_grupa_c[-c(1:5), -c(5:8)]
+names(me_grupa_c) <- c("Miejsce", "Drużyna", "Zwycięstwa-Porażki", "Procent wygranych")
+me_grupa_c[,2] <- c("DRX", "Rogue", "Top Esports", "GAM Esports")
+
+me_grupa_d <- me_grupa_d[-c(1:5), -c(5:8)]
+names(me_grupa_d) <- c("Miejsce", "Drużyna", "Zwycięstwa-Porażki", "Procent wygranych")
+me_grupa_d[,2] <- c("Gen.G", "Royal Never Give Up", "100 Thieves", "CTBC Flying Oyster")
+
+logo_me_urls <- page_me %>% html_elements("td.tournament-roster-logo-cell") %>% html_element("img") %>% html_attr("data-src")
+logo_me_names <- page_me %>% html_elements("td.tournament-roster-logo-cell") %>% html_element("img") %>% html_attr("data-image-key") %>% str_remove_all(pattern = "logo_square") %>% str_remove_all(pattern = "%28") %>% str_remove_all(pattern = "%29")
+
+for (i in 1:length(logo_me_urls)) {
+  GET(logo_me_urls[i], write_disk(paste0(getwd(),"/img/team_logo/",logo_me_names[i]), overwrite = TRUE))
+}
+
+me_a_images <- c(paste0(getwd(),'/img/team_logo/T1.png'),paste0(getwd(),"/img/team_logo/EDward_Gaming.png"),paste0(getwd(),"/img/team_logo/Fnatic.png"),paste0(getwd(),"/img/team_logo/Cloud9.png"))
+
+me_b_images <- c(paste0(getwd(),'/img/team_logo/JD_Gaming.png'),paste0(getwd(),"/img/team_logo/DWG_KIA.png"),paste0(getwd(),"/img/team_logo/Evil_Geniuses_2020.png"),paste0(getwd(),"/img/team_logo/G2_Esports.png"))
+
+me_c_images <- c(paste0(getwd(),'/img/team_logo/DRX.png'),paste0(getwd(),"/img/team_logo/Rogue_European_Team.png"),paste0(getwd(),"/img/team_logo/Top_Esports.png"),paste0(getwd(),"/img/team_logo/GAM_Esports.png"))
+
+me_d_images <- c(paste0(getwd(),'/img/team_logo/Gen.G.png'),paste0(getwd(),"/img/team_logo/Royal_Never_Give_Up.png"),paste0(getwd(),"/img/team_logo/100_Thieves.png"),paste0(getwd(),"/img/team_logo/CTBC_Flying_Oyster.png"))
+
+RColorBrewer::brewer.pal(10, "RdYlGn")
